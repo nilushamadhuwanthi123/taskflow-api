@@ -122,7 +122,6 @@ describe('Task API', () => {
       ({ token } = await registerAndLogin());
       // Create 3 tasks with distinct titles so we can assert on order/paging.
       for (const title of ['Task A', 'Task B', 'Task C']) {
-        // eslint-disable-next-line no-await-in-loop
         await request(app).post('/api/tasks').set('Authorization', `Bearer ${token}`).send({ title });
       }
     });
