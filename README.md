@@ -8,7 +8,7 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 
 - JWT-based authentication (register/login) with bcrypt password hashing
 - Full task CRUD scoped to the authenticated user (ownership enforced on every read/write)
-- Filtering task lists by `status` and `priority`
+- Filtering task lists by `status` and `priority`, with pagination (`page`, `limit`) and sorting (`sort`)
 - Centralized error handling with a consistent JSON error shape
 - Real request validation (`express-validator`) on every write endpoint
 - Rate limiting on auth routes (`express-rate-limit`)
@@ -27,7 +27,7 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 | POST   | `/api/auth/register`| No            | `{ name, email, password }`                                        | Create a new user account, returns a JWT      |
 | POST   | `/api/auth/login`    | No            | `{ email, password }`                                               | Authenticate, returns a JWT                   |
 | POST   | `/api/tasks`         | Yes           | `{ title, description?, status?, priority?, dueDate? }`             | Create a task owned by the current user       |
-| GET    | `/api/tasks`         | Yes           | — (`?status=`, `?priority=` query filters)                          | List the current user's tasks                 |
+| GET    | `/api/tasks`         | Yes           | — (`?status=`, `?priority=`, `?page=`, `?limit=`, `?sort=`)          | List the current user's tasks (paginated, sortable) |
 | GET    | `/api/tasks/:id`     | Yes           | —                                                                    | Get a single task (must be owned by the user) |
 | PUT    | `/api/tasks/:id`     | Yes           | Any of `{ title, description, status, priority, dueDate }`         | Update a task (must be owned by the user)     |
 | DELETE | `/api/tasks/:id`     | Yes           | —                                                                    | Delete a task (must be owned by the user)     |
