@@ -3,15 +3,17 @@ const rateLimit = require('express-rate-limit');
 const { body } = require('express-validator');
 const validate = require('../middleware/validate');
 const { protect } = require('../middleware/auth');
+const { AUTH_RATE_LIMIT } = require('../config/rateLimits');
 const { register, login, refresh, logout } = require('../controllers/authController');
 
 const router = express.Router();
 
 // Auth endpoints are a common brute-force / credential-stuffing target,
-// so they get a tighter rate limit than the rest of the API.
+// so they get a tighter rate limit than the rest of the API. The
+// windowMs/max values live in config/rateLimits so GET /api/stats can
+// report the exact same numbers without risk of the two drifting apart.
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
+  ...AUTH_RATE_LIMIT,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { message: 'Too many auth requests, please try again later' } },
