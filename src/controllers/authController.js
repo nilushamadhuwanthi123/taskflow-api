@@ -11,9 +11,16 @@ function signAccessToken(user) {
 }
 
 function signRefreshToken(user) {
-  return jwt.sign({ sub: user._id.toString(), type: 'refresh' }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
-  });
+  // `jti` (a random token id) guarantees the signed token is unique even
+  // when two refresh tokens are issued for the same user within the same
+  // second — JWT `iat` only has second-level precision, so without a
+  // per-token nonce, back-to-back refreshes could otherwise mint the exact
+  // same token string and defeat rotation.
+  return jwt.sign(
+    { sub: user._id.toString(), type: 'refresh', jti: crypto.randomUUID() },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
+  );
 }
 
 // We only ever persist a SHA-256 hash of the refresh token, never the raw
