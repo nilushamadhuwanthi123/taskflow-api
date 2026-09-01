@@ -15,6 +15,7 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 - Rate limiting on auth routes (`express-rate-limit`)
 - Security headers via `helmet`, configurable CORS
 - `/health` endpoint for container orchestration and uptime checks
+- `/api/stats` endpoint exposing lightweight, in-memory request metrics (totals, per-method and per-status-class breakdowns, current auth rate-limit config) for basic operational visibility
 - Integration test suite (Jest + Supertest) against a real in-memory MongoDB (`mongodb-memory-server`) — no external database required to run tests
 - Multi-stage, non-root Dockerfile with a `HEALTHCHECK`
 - `docker-compose.yml` for one-command local development (API + MongoDB)
@@ -25,6 +26,7 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 | Method | Path                | Auth required | Body                                                              | Description                                  |
 |--------|---------------------|:-------------:|--------------------------------------------------------------------|-----------------------------------------------|
 | GET    | `/health`            | No            | —                                                                    | Health check (`{ status, uptime, timestamp }`) |
+| GET    | `/api/stats`          | No            | —                                                                    | Request metrics: totals, per-method/status breakdown, auth rate limit |
 | POST   | `/api/auth/register`| No            | `{ name, email, password }`                                        | Create a new user account, returns a JWT      |
 | POST   | `/api/auth/login`    | No            | `{ email, password }`                                               | Authenticate, returns an access + refresh token |
 | POST   | `/api/auth/refresh`  | No*           | `{ refreshToken }`                                                   | Exchange a valid refresh token for a new pair (rotates it) |
@@ -52,16 +54,22 @@ src/
 │   └── Task.js             # Task schema
 ├── controllers/
 │   ├── authController.js  # register / login handlers
-│   └── taskController.js  # task CRUD handlers, ownership checks
+│   ├── taskController.js  # task CRUD handlers, ownership checks
+│   └── statsController.js # /api/stats handler
 ├── middleware/
 │   ├── auth.js             # JWT verification -> req.user
 │   ├── validate.js          # express-validator error formatter
 │   ├── errorHandler.js       # centralized error -> JSON response
+│   ├── trackMetrics.js        # records every request into utils/metrics
 │   └── asyncHandler.js        # wraps async route handlers
+├── utils/
+│   ├── ApiError.js          # typed HTTP error
+│   └── metrics.js            # in-memory request counters backing /api/stats
 └── routes/
     ├── authRoutes.js         # /api/auth/* (+ rate limiting)
     ├── taskRoutes.js          # /api/tasks/* (+ validation, protected)
-    └── healthRoutes.js         # /health
+    ├── healthRoutes.js         # /health
+    └── statsRoutes.js          # /api/stats
 ```
 
 `app.js` and `server.js` are deliberately split: `app.js` exports the configured Express app without binding a port, so the test suite can `require('../src/app')` and drive it with Supertest directly, while `server.js` is the thin entrypoint that actually connects to MongoDB and listens.
