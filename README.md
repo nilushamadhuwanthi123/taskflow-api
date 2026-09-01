@@ -7,6 +7,7 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 ## Features
 
 - JWT-based authentication (register/login) with bcrypt password hashing
+- Short-lived access tokens with a rotating refresh-token flow (`/api/auth/refresh`, `/api/auth/logout`) — refresh tokens are stored only as a SHA-256 hash and rotate on every use
 - Full task CRUD scoped to the authenticated user (ownership enforced on every read/write)
 - Filtering task lists by `status` and `priority`, with pagination (`page`, `limit`) and sorting (`sort`)
 - Centralized error handling with a consistent JSON error shape
@@ -25,7 +26,9 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 |--------|---------------------|:-------------:|--------------------------------------------------------------------|-----------------------------------------------|
 | GET    | `/health`            | No            | —                                                                    | Health check (`{ status, uptime, timestamp }`) |
 | POST   | `/api/auth/register`| No            | `{ name, email, password }`                                        | Create a new user account, returns a JWT      |
-| POST   | `/api/auth/login`    | No            | `{ email, password }`                                               | Authenticate, returns a JWT                   |
+| POST   | `/api/auth/login`    | No            | `{ email, password }`                                               | Authenticate, returns an access + refresh token |
+| POST   | `/api/auth/refresh`  | No*           | `{ refreshToken }`                                                   | Exchange a valid refresh token for a new pair (rotates it) |
+| POST   | `/api/auth/logout`   | Yes           | —                                                                    | Revoke the current user's refresh token       |
 | POST   | `/api/tasks`         | Yes           | `{ title, description?, status?, priority?, dueDate? }`             | Create a task owned by the current user       |
 | GET    | `/api/tasks`         | Yes           | — (`?status=`, `?priority=`, `?page=`, `?limit=`, `?sort=`)          | List the current user's tasks (paginated, sortable) |
 | GET    | `/api/tasks/:id`     | Yes           | —                                                                    | Get a single task (must be owned by the user) |
@@ -33,6 +36,8 @@ TaskFlow API is a JWT-authenticated task/todo management REST API built with Nod
 | DELETE | `/api/tasks/:id`     | Yes           | —                                                                    | Delete a task (must be owned by the user)     |
 
 Authenticated requests send `Authorization: Bearer <token>`. `status` is one of `todo` \| `in-progress` \| `done`; `priority` is one of `low` \| `medium` \| `high`.
+
+`register` and `login` return both a short-lived `token` (access token) and a longer-lived `refreshToken`. When the access token expires, `POST /api/auth/refresh` exchanges a valid refresh token for a brand-new pair — the refresh token used is immediately invalidated (rotation), so it can't be replayed. `POST /api/auth/logout` revokes the current refresh token outright.
 
 ## Architecture
 
@@ -102,13 +107,15 @@ See [`.env.example`](./.env.example) for the full template. Never commit a real 
 | `PORT`            | Port the HTTP server listens on                            | `5000`                                        |
 | `NODE_ENV`        | Runtime environment                                         | `development` \| `production` \| `test`      |
 | `MONGO_URI`       | MongoDB connection string                                   | `mongodb://mongo:27017/taskflow`             |
-| `JWT_SECRET`      | Secret used to sign/verify JWTs                              | a long random string                          |
-| `JWT_EXPIRES_IN`  | JWT expiry                                                    | `7d`                                          |
+| `JWT_SECRET`      | Secret used to sign/verify access-token JWTs                  | a long random string                          |
+| `JWT_EXPIRES_IN`  | Access token expiry                                            | `7d`                                          |
+| `JWT_REFRESH_SECRET` | Secret used to sign/verify refresh-token JWTs (must differ from `JWT_SECRET`) | a different long random string |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry                                     | `30d`                                         |
 | `CORS_ORIGIN`     | Comma-separated allowed CORS origins, or `*` for any          | `https://myapp.com,https://admin.myapp.com`  |
 
 ## Live API
 
-**Live API:** _will be added after Render deployment_
+**Live API:** https://taskflow-api-zvwb.onrender.com — try `GET /health` for a quick liveness check. Deployed on Render's free tier via `render.yaml` (Docker auto-deploy from `main`); the instance spins down after inactivity, so the first request after idle time can take up to ~50 seconds.
 
 ## License
 
