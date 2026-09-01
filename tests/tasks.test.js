@@ -115,6 +115,57 @@ describe('Task API', () => {
     });
   });
 
+  describe('Pagination and sorting', () => {
+    let token;
+
+    beforeEach(async () => {
+      ({ token } = await registerAndLogin());
+      // Create 3 tasks with distinct titles so we can assert on order/paging.
+      for (const title of ['Task A', 'Task B', 'Task C']) {
+        // eslint-disable-next-line no-await-in-loop
+        await request(app).post('/api/tasks').set('Authorization', `Bearer ${token}`).send({ title });
+      }
+    });
+
+    it('paginates results and reports pagination metadata', async () => {
+      const pageOne = await request(app)
+        .get('/api/tasks?limit=2&page=1&sort=title')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(pageOne.status).toBe(200);
+      expect(pageOne.body.count).toBe(2);
+      expect(pageOne.body.total).toBe(3);
+      expect(pageOne.body.page).toBe(1);
+      expect(pageOne.body.limit).toBe(2);
+      expect(pageOne.body.totalPages).toBe(2);
+      expect(pageOne.body.tasks.map((t) => t.title)).toEqual(['Task A', 'Task B']);
+
+      const pageTwo = await request(app)
+        .get('/api/tasks?limit=2&page=2&sort=title')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(pageTwo.body.count).toBe(1);
+      expect(pageTwo.body.tasks.map((t) => t.title)).toEqual(['Task C']);
+    });
+
+    it('sorts by title descending when requested', async () => {
+      const res = await request(app)
+        .get('/api/tasks?sort=-title')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.tasks.map((t) => t.title)).toEqual(['Task C', 'Task B', 'Task A']);
+    });
+
+    it('rejects an out-of-range limit', async () => {
+      const res = await request(app)
+        .get('/api/tasks?limit=500')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(422);
+    });
+  });
+
   describe('Ownership enforcement', () => {
     it('prevents user B from viewing, updating, or deleting user A task', async () => {
       const { token: tokenA } = await registerAndLogin({ email: 'userA@example.com' });

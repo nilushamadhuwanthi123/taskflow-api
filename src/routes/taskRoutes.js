@@ -33,11 +33,16 @@ router.post(
   createTask
 );
 
+const SORT_VALUES = ['createdAt', '-createdAt', 'updatedAt', '-updatedAt', 'dueDate', '-dueDate', 'priority', '-priority', 'title', '-title'];
+
 router.get(
   '/',
   [
     query('status').optional().isIn(STATUS_VALUES),
     query('priority').optional().isIn(PRIORITY_VALUES),
+    query('page').optional().isInt({ min: 1 }).withMessage('page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('limit must be between 1 and 100'),
+    query('sort').optional().isIn(SORT_VALUES).withMessage(`sort must be one of: ${SORT_VALUES.join(', ')}`),
   ],
   validate,
   listTasks

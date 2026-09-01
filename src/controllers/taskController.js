@@ -18,17 +18,50 @@ const createTask = asyncHandler(async (req, res) => {
   res.status(201).json({ task });
 });
 
-// GET /api/tasks?status=&priority=
+const SORTABLE_FIELDS = ['createdAt', 'updatedAt', 'dueDate', 'priority', 'title'];
+
+// Parses a `sort` query value like "-createdAt" or "dueDate" into a
+// Mongoose sort object, falling back to newest-first when the field isn't
+// one of the fields we allow sorting by.
+function parseSort(sortParam) {
+  if (!sortParam || typeof sortParam !== 'string') {
+    return { createdAt: -1 };
+  }
+  const direction = sortParam.startsWith('-') ? -1 : 1;
+  const field = sortParam.replace(/^-/, '');
+  if (!SORTABLE_FIELDS.includes(field)) {
+    return { createdAt: -1 };
+  }
+  return { [field]: direction };
+}
+
+// GET /api/tasks?status=&priority=&page=&limit=&sort=
 const listTasks = asyncHandler(async (req, res) => {
-  const { status, priority } = req.query;
+  const { status, priority, sort } = req.query;
+
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
 
   const filter = { owner: req.user._id };
   if (status) filter.status = status;
   if (priority) filter.priority = priority;
 
-  const tasks = await Task.find(filter).sort({ createdAt: -1 });
+  const [tasks, total] = await Promise.all([
+    Task.find(filter)
+      .sort(parseSort(sort))
+      .skip((page - 1) * limit)
+      .limit(limit),
+    Task.countDocuments(filter),
+  ]);
 
-  res.status(200).json({ count: tasks.length, tasks });
+  res.status(200).json({
+    count: tasks.length,
+    total,
+    page,
+    limit,
+    totalPages: Math.max(Math.ceil(total / limit), 1),
+    tasks,
+  });
 });
 
 // GET /api/tasks/:id
