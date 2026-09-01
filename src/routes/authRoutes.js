@@ -2,7 +2,8 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { body } = require('express-validator');
 const validate = require('../middleware/validate');
-const { register, login } = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
+const { register, login, refresh, logout } = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -40,5 +41,15 @@ router.post(
   validate,
   login
 );
+
+router.post(
+  '/refresh',
+  authLimiter,
+  [body('refreshToken').notEmpty().withMessage('refreshToken is required')],
+  validate,
+  refresh
+);
+
+router.post('/logout', protect, logout);
 
 module.exports = router;

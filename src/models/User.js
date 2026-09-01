@@ -21,6 +21,14 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
       select: false,
     },
+    // SHA-256 hash of the current active refresh token, if any. Never store
+    // the raw refresh token — only its hash, so a database leak alone
+    // can't be used to mint new access tokens. Cleared on logout and
+    // rotated on every successful /auth/refresh call.
+    refreshTokenHash: {
+      type: String,
+      select: false,
+    },
   },
   { timestamps: true }
 );
@@ -39,6 +47,7 @@ userSchema.methods.comparePassword = function comparePassword(candidate) {
 userSchema.methods.toJSON = function toJSON() {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.refreshTokenHash;
   delete obj.__v;
   return obj;
 };
